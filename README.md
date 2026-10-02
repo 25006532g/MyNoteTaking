@@ -9,7 +9,7 @@ A modern, responsive web application for managing personal notes with a beautifu
 - **Delete Notes**: Remove notes you no longer need
 - **Search Notes**: Find notes quickly by searching titles and content
 - **Auto-save**: Notes are automatically saved as you type
-- **Note Translation**: Translate the current title and content into common languages, with a preview before applying
+- **Note Translation**: Detect the source language, compare original and translated text side by side, then confirm or revert
 - **Responsive Design**: Works perfectly on desktop and mobile devices
 - **Modern UI**: Beautiful gradient design with smooth animations
 - **Real-time Updates**: Instant feedback and updates
@@ -88,6 +88,15 @@ notetaking-app/
 
    The key is read by Flask on the server and is never sent to the browser. To choose a different OpenRouter model, optionally add `OPEN_ROUTER_MODEL` to `.env`. Translation instructions are loaded from the editable repository-root file `prompt/translate.txt`.
 
+   Database connections use `DATABASE_URL` when set, preferring the pooled Neon URL for application traffic. Keep `DATABASE_URL_UNPOOLED` set to the direct Neon URL for schema and data migrations. Without `DATABASE_URL`, the app uses the local SQLite database.
+
+   To copy local SQLite records to Neon, run a dry-run first, then explicitly apply the migration:
+   ```bash
+   python scripts/migrate_sqlite_to_neon.py
+   python scripts/migrate_sqlite_to_neon.py --apply
+   ```
+   The migration creates missing tables, inserts missing rows, preserves the SQLite file, and stops on conflicting row IDs rather than overwriting Neon data.
+
 5. **Run the application**
    ```bash
    python src/main.py
@@ -131,7 +140,7 @@ The translation request accepts `title`, `content`, and `target_language` (for e
 ### Editor Panel
 - **Title Input**: Edit note titles
 - **Content Textarea**: Rich text editing area
-- **Translation Preview**: Translate current editor text and explicitly apply the title, content, or both
+- **Translation Preview**: Compare line-numbered original and translated text, confirm both fields together, or restore the original text
 - **Save Button**: Manual save option (auto-save also available)
 - **Delete Button**: Remove notes with confirmation
 - **Real-time Updates**: Changes reflected immediately

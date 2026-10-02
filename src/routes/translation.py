@@ -6,6 +6,7 @@ from src.services.translation import translate_note
 translation_bp = Blueprint('translation', __name__)
 
 SUPPORTED_LANGUAGES = {
+    'en': 'English',
     'zh-TW': 'Traditional Chinese (繁體中文)',
     'zh-CN': 'Simplified Chinese (简体中文)',
     'ja': 'Japanese (日本語)',

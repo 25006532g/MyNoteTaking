@@ -54,11 +54,17 @@ def translate_note(title: str, content: str, target_language: str) -> dict[str, 
 
     try:
         translated = json.loads(result['choices'][0]['message']['content'])
+        detected_language = translated['detected_language']
         translated_title = translated['title']
         translated_content = translated['content']
     except (KeyError, IndexError, TypeError, json.JSONDecodeError) as error:
         raise RuntimeError('OpenRouter returned an unexpected translation format') from error
 
-    if not isinstance(translated_title, str) or not isinstance(translated_content, str):
+    if (not isinstance(detected_language, str) or not detected_language.strip()
+            or not isinstance(translated_title, str) or not isinstance(translated_content, str)):
         raise RuntimeError('OpenRouter returned an unexpected translation format')
-    return {'title': translated_title, 'content': translated_content}
+    return {
+        'detected_language': detected_language,
+        'title': translated_title,
+        'content': translated_content,
+    }

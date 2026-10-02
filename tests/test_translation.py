@@ -35,7 +35,11 @@ class TranslationRouteTests(unittest.TestCase):
         translate_note.assert_not_called()
 
     def test_returns_translated_fields(self):
-        expected = {'title': 'こんにちは', 'content': '世界'}
+        expected = {
+            'detected_language': 'English',
+            'title': 'こんにちは',
+            'content': '世界',
+        }
         with patch('src.routes.translation.translate_note', return_value=expected) as translate_note:
             response = self.client.post('/api/translate', json={
                 'title': 'Hello',
@@ -45,6 +49,20 @@ class TranslationRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json(), expected)
         translate_note.assert_called_once_with('Hello', 'World', 'Japanese (日本語)')
+
+    def test_accepts_english_as_target_language(self):
+        with patch('src.routes.translation.translate_note', return_value={
+            'detected_language': 'Japanese',
+            'title': 'Hello',
+            'content': 'World',
+        }) as translate_note:
+            response = self.client.post('/api/translate', json={
+                'title': 'こんにちは',
+                'content': '世界',
+                'target_language': 'en',
+            })
+        self.assertEqual(response.status_code, 200)
+        translate_note.assert_called_once_with('こんにちは', '世界', 'English')
 
 
 class TranslationServiceTests(unittest.TestCase):
@@ -57,7 +75,11 @@ class TranslationServiceTests(unittest.TestCase):
         prompt_text = 'Editable translation instructions'
         api_response = {
             'choices': [{
-                'message': {'content': json.dumps({'title': 'こんにちは', 'content': '世界'})}
+                'message': {'content': json.dumps({
+                    'detected_language': 'English',
+                    'title': 'こんにちは',
+                    'content': '世界',
+                })}
             }]
         }
         response_stream = io.BytesIO(json.dumps(api_response).encode('utf-8'))
@@ -76,7 +98,11 @@ class TranslationServiceTests(unittest.TestCase):
                 patch.object(translation, 'urlopen', side_effect=fake_urlopen):
             result = translation.translate_note('Hello', 'World', 'Japanese')
 
-        self.assertEqual(result, {'title': 'こんにちは', 'content': '世界'})
+        self.assertEqual(result, {
+            'detected_language': 'English',
+            'title': 'こんにちは',
+            'content': '世界',
+        })
 
 
 if __name__ == '__main__':
