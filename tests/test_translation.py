@@ -66,6 +66,26 @@ class TranslationRouteTests(unittest.TestCase):
 
 
 class TranslationServiceTests(unittest.TestCase):
+    def test_traditional_script_overrides_incorrect_simplified_detection(self):
+        detected = translation.normalize_detected_language(
+            'Simplified Chinese',
+            '繁體中文翻譯',
+            '請使用這個設定，將資料儲存到資料庫。',
+        )
+        self.assertEqual(detected, 'Traditional Chinese (繁體中文)')
+
+    def test_simplified_script_overrides_incorrect_traditional_detection(self):
+        detected = translation.normalize_detected_language(
+            'Traditional Chinese',
+            '简体中文翻译',
+            '请使用这个设置，将数据保存到数据库。',
+        )
+        self.assertEqual(detected, 'Simplified Chinese (简体中文)')
+
+    def test_ambiguous_chinese_text_keeps_model_detection(self):
+        detected = translation.normalize_detected_language('Chinese', '你好', '中文')
+        self.assertEqual(detected, 'Chinese')
+
     def test_missing_key_is_reported(self):
         with patch.dict(os.environ, {}, clear=True):
             with self.assertRaisesRegex(RuntimeError, 'OPEN_ROUTER_KEY'):
