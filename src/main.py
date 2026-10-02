@@ -1,9 +1,5 @@
 import os
 import sys
-import argparse
-import json
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 
 # DON'T CHANGE THIS !!!
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -14,6 +10,7 @@ from flask_cors import CORS
 from src.models.user import db
 from src.routes.user import user_bp
 from src.routes.note import note_bp
+from src.routes.translation import translation_bp
 from src.models.note import Note
 
 ROOT_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
@@ -73,6 +70,7 @@ CORS(app)
 # register blueprints
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(note_bp, url_prefix='/api')
+app.register_blueprint(translation_bp, url_prefix='/api')
 # configure database to use repository-root `database/app.db`
 DB_PATH = os.path.join(ROOT_DIR, 'database', 'app.db')
 # ensure database directory exists
@@ -102,11 +100,4 @@ def serve(path):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Translate text into Traditional Chinese.')
-    parser.add_argument('prompt', nargs='?', help='Text to translate')
-    args = parser.parse_args()
-
-    if args.prompt is not None:
-        print(llm_generate(args.prompt))
-    else:
-        app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=True)
