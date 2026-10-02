@@ -71,6 +71,10 @@
             flex-direction: column;
         }
 
+        .note-editor.is-new-note {
+            background: #e8f4ff;
+        }
+
         .search-box {
             width: 100%;
             padding: 12px 15px;
@@ -120,13 +124,7 @@
             background: #f8f9fa;
         }
 
-        .note-item:hover {
-            border-color: #667eea;
-            transform: translateX(5px);
-        }
-
         .note-item.active {
-            border-color: #667eea;
             background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
         }
 
@@ -197,6 +195,16 @@
 
         .btn-delete:hover {
             background: #c82333;
+            transform: translateY(-1px);
+        }
+
+        .btn-clear {
+            background: #6c9fc9;
+            color: white;
+        }
+
+        .btn-clear:hover {
+            background: #568ab7;
             transform: translateY(-1px);
         }
 
@@ -388,7 +396,13 @@
             bindEvents() {
                 document.getElementById('newNoteBtn').addEventListener('click', () => this.createNewNote());
                 document.getElementById('saveBtn').addEventListener('click', () => this.saveNote());
-                document.getElementById('deleteBtn').addEventListener('click', () => this.deleteNote());
+                document.getElementById('deleteBtn').addEventListener('click', () => {
+                    if (this.currentNote && !this.currentNote.id) {
+                        this.clearNewNote();
+                    } else {
+                        this.deleteNote();
+                    }
+                });
                 document.getElementById('searchBox').addEventListener('input', (e) => this.searchNotes(e.target.value));
                 
                 // Auto-save on content change (debounced)
@@ -447,6 +461,7 @@
                 if (!note) return;
 
                 this.currentNote = note;
+                this.setDraftMode(false);
                 this.showEditor();
                 this.renderNotesList(); // Re-render to update active state
                 
@@ -464,6 +479,7 @@
                     updated_at: new Date().toISOString()
                 };
                 
+                this.setDraftMode(true);
                 this.showEditor();
                 document.getElementById('noteTitle').value = '';
                 document.getElementById('noteContent').value = '';
@@ -482,11 +498,31 @@
                 document.getElementById('editorActions').style.display = 'flex';
             }
 
+            setDraftMode(isDraft) {
+                const editor = document.querySelector('.note-editor');
+                const actionButton = document.getElementById('deleteBtn');
+                editor.classList.toggle('is-new-note', isDraft);
+                actionButton.classList.toggle('btn-delete', !isDraft);
+                actionButton.classList.toggle('btn-clear', isDraft);
+                actionButton.textContent = isDraft ? '🧹 Clear' : '🗑️ Delete';
+            }
+
+            clearNewNote() {
+                if (!this.currentNote || this.currentNote.id) return;
+
+                document.getElementById('noteTitle').value = '';
+                document.getElementById('noteContent').value = '';
+                document.getElementById('editorTitle').textContent = 'New Note';
+                this.hideMessage();
+                document.getElementById('noteTitle').focus();
+            }
+
             hideEditor() {
                 document.getElementById('emptyState').style.display = 'block';
                 document.getElementById('editorForm').style.display = 'none';
                 document.getElementById('editorActions').style.display = 'none';
                 document.getElementById('editorTitle').textContent = 'Select a note to edit';
+                this.setDraftMode(false);
                 this.currentNote = null;
             }
 
@@ -530,6 +566,7 @@
 
                     const savedNote = await response.json();
                     this.currentNote = savedNote;
+                    this.setDraftMode(false);
                     
                     // Update notes list
                     const existingIndex = this.notes.findIndex(n => n.id === savedNote.id);
