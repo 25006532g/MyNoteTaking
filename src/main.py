@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from dotenv import load_dotenv
 from flask import Flask, send_from_directory
 from flask_cors import CORS
+from src.database_config import get_database_uri
 from src.models.user import db
 from src.routes.user import user_bp
 from src.routes.note import note_bp
@@ -71,19 +72,10 @@ CORS(app)
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(note_bp, url_prefix='/api')
 app.register_blueprint(translation_bp, url_prefix='/api')
-database_url = os.getenv('DATABASE_URL')
-if database_url:
-    if database_url.startswith('postgres://'):
-        database_url = database_url.replace('postgres://', 'postgresql+psycopg://', 1)
-    elif database_url.startswith('postgresql://'):
-        database_url = database_url.replace('postgresql://', 'postgresql+psycopg://', 1)
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+database_uri, is_postgres = get_database_uri(os.environ, ROOT_DIR)
+app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
+if is_postgres:
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True}
-else:
-    # Keep SQLite available for local development when no DATABASE_URL is configured.
-    DB_PATH = os.path.join(ROOT_DIR, 'database', 'app.db')
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{DB_PATH}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 with app.app_context():

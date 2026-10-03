@@ -90,6 +90,8 @@ notetaking-app/
 
    Database connections use `DATABASE_URL` when set, preferring the pooled Neon URL for application traffic. Keep `DATABASE_URL_UNPOOLED` set to the direct Neon URL for schema and data migrations. Without `DATABASE_URL`, the app uses the local SQLite database.
 
+   For Vercel, add the pooled Neon URL as the `DATABASE_URL` project environment variable and enable it for each deployment environment you use (Production, Preview, and Development). Vercel does not read the ignored local `.env`; without a remote URL, the app now stops with a configuration error instead of trying to write SQLite files to its read-only deployment filesystem. `POSTGRES_URL` is also accepted for Vercel Postgres integrations.
+
    To copy local SQLite records to Neon, run a dry-run first, then explicitly apply the migration:
    ```bash
    python scripts/migrate_sqlite_to_neon.py
