@@ -90,6 +90,21 @@ notetaking-app/
 
    Database connections use `DATABASE_URL` when set, preferring the pooled Neon URL for application traffic. Keep `DATABASE_URL_UNPOOLED` set to the direct Neon URL for schema and data migrations. Without `DATABASE_URL`, the app uses the local SQLite database.
 
+   For Vercel, add the pooled Neon URL as the `DATABASE_URL` project environment variable and enable it for each deployment environment you use (Production, Preview, and Development). Vercel does not read the ignored local `.env`; without a remote URL, the app now stops with a configuration error instead of trying to write SQLite files to its read-only deployment filesystem. `POSTGRES_URL` is also accepted for Vercel Postgres integrations.
+
+### Deploy to Vercel
+
+1. Push this repository to GitHub, then in Vercel choose **Add New → Project** and import the repository.
+2. Set the project root directory to the repository root. Vercel recognizes the Flask app at `src/main.py`; it exports the required top-level `app` object. Leave the build command at its default.
+3. In **Settings → Environment Variables**, add:
+   - `DATABASE_URL`: the pooled Neon connection URL from the project `.env`; enable it for Production, Preview, and Development as needed.
+   - `OPEN_ROUTER_KEY`: the OpenRouter key, required for the translation endpoint.
+   - `OPEN_ROUTER_MODEL`: optional; omit it to use the default model.
+4. Save the variables and deploy. After changing variables later, redeploy so the new deployment receives them.
+5. Open the deployment URL and verify the home page, `/api/notes`, and a translation. Check Vercel **Deployments → Functions → Logs** if a request fails.
+
+Do not add `.env` to Git or configure `DATABASE_URL_UNPOOLED` for normal app traffic. The app uses pooled `DATABASE_URL`; keep the direct URL for migration commands only.
+
    To copy local SQLite records to Neon, run a dry-run first, then explicitly apply the migration:
    ```bash
    python scripts/migrate_sqlite_to_neon.py
