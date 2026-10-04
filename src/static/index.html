@@ -550,6 +550,7 @@
                     <h2 class="editor-title" id="editorTitle">Select a note to edit</h2>
                     <div class="editor-actions" id="editorActions" style="display: none;">
                         <button class="btn btn-translate" id="translateBtn" type="button">Translate</button>
+                        <button class="btn btn-undo-translation" id="revertTranslationBtn" type="button" style="display: none;">Revert to original</button>
                         <button class="btn btn-save" id="saveBtn">💾 Save</button>
                         <button class="btn btn-delete" id="deleteBtn">🗑️ Delete</button>
                     </div>
@@ -615,6 +616,7 @@
                 this.currentNote = null;
                 this.isLoading = false;
                 this.translationResult = null;
+                this.translationOriginal = null;
                 this.translationLanguageOptions = [
                     { code: 'en', label: 'English', aliases: ['en', 'english'] },
                     { code: 'zh-TW', label: 'Traditional Chinese', aliases: ['zh-tw', 'traditional chinese', 'chinese (traditional)', '繁體中文', '繁体中文'] },
@@ -649,6 +651,7 @@
                 });
                 document.getElementById('undoTranslationBtn').addEventListener('click', () => this.undoTranslation());
                 document.getElementById('confirmTranslationBtn').addEventListener('click', () => this.applyTranslation());
+                document.getElementById('revertTranslationBtn').addEventListener('click', () => this.revertTranslation());
                 document.getElementById('deleteBtn').addEventListener('click', () => {
                     if (this.currentNote && !this.currentNote.id) {
                         this.clearNewNote();
@@ -768,13 +771,26 @@
             applyTranslation() {
                 if (!this.translationResult) return;
                 const translation = this.translationResult;
+                this.translationOriginal = translation.original;
                 document.getElementById('noteTitle').value = translation.title;
                 document.getElementById('noteContent').value = translation.content;
+                document.getElementById('revertTranslationBtn').style.display = '';
                 document.getElementById('editorForm').style.display = 'flex';
                 this.hideTranslation();
                 document.getElementById('noteTitle').dispatchEvent(new Event('input', { bubbles: true }));
                 document.getElementById('noteContent').dispatchEvent(new Event('input', { bubbles: true }));
                 this.showMessage('Translation added to the editor. Save it when ready.', 'success');
+            }
+
+            revertTranslation() {
+                if (!this.translationOriginal) return;
+                document.getElementById('noteTitle').value = this.translationOriginal.title;
+                document.getElementById('noteContent').value = this.translationOriginal.content;
+                document.getElementById('revertTranslationBtn').style.display = 'none';
+                document.getElementById('noteTitle').dispatchEvent(new Event('input', { bubbles: true }));
+                document.getElementById('noteContent').dispatchEvent(new Event('input', { bubbles: true }));
+                this.translationOriginal = null;
+                this.showMessage('Original text restored.', 'success');
             }
 
             undoTranslation() {
@@ -829,6 +845,8 @@
                 if (!note) return;
 
                 this.currentNote = note;
+                this.translationOriginal = null;
+                document.getElementById('revertTranslationBtn').style.display = 'none';
                 this.hideTranslation();
                 this.setDraftMode(false);
                 this.showEditor();
@@ -842,6 +860,8 @@
 
             createNewNote() {
                 this.hideTranslation();
+                this.translationOriginal = null;
+                document.getElementById('revertTranslationBtn').style.display = 'none';
                 this.currentNote = {
                     id: null,
                     title: '',
@@ -893,6 +913,7 @@
                 document.getElementById('emptyState').style.display = 'block';
                 document.getElementById('editorForm').style.display = 'none';
                 document.getElementById('editorActions').style.display = 'none';
+                document.getElementById('revertTranslationBtn').style.display = 'none';
                 document.getElementById('editorTitle').textContent = 'Select a note to edit';
                 document.getElementById('editorTitle').style.display = '';
                 this.setDraftMode(false);
