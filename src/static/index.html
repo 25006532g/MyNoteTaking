@@ -227,6 +227,21 @@
             color: #333;
         }
 
+        .translation-result-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .detected-language {
+            min-width: 0;
+            color: #666;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
         .comparison-field {
             margin-bottom: 16px;
         }
@@ -534,20 +549,6 @@
                 <div class="editor-header">
                     <h2 class="editor-title" id="editorTitle">Select a note to edit</h2>
                     <div class="editor-actions" id="editorActions" style="display: none;">
-                        <select class="language-select" id="targetLanguage" aria-label="Translation language">
-                            <option value="zh-TW">Traditional Chinese</option>
-                            <option value="zh-CN">Simplified Chinese</option>
-                            <option value="ja">Japanese</option>
-                            <option value="ko">Korean</option>
-                            <option value="es">Spanish</option>
-                            <option value="fr">French</option>
-                            <option value="de">German</option>
-                            <option value="it">Italian</option>
-                            <option value="pt">Portuguese</option>
-                            <option value="ru">Russian</option>
-                            <option value="ar">Arabic</option>
-                            <option value="hi">Hindi</option>
-                        </select>
                         <button class="btn btn-translate" id="translateBtn" type="button">Translate</button>
                         <button class="btn btn-save" id="saveBtn">💾 Save</button>
                         <button class="btn btn-delete" id="deleteBtn">🗑️ Delete</button>
@@ -569,6 +570,10 @@
                 </div>
 
                 <section class="translation-result" id="translationResult" aria-live="polite" style="display: none;">
+                    <div class="translation-result-header">
+                        <span class="detected-language" id="detectedLanguage"></span>
+                        <select class="language-select" id="targetLanguage" aria-label="Translate to language"></select>
+                    </div>
                     <div class="comparison-field">
                         <div class="comparison-labels">
                             <span>Original title</span>
@@ -610,6 +615,21 @@
                 this.currentNote = null;
                 this.isLoading = false;
                 this.translationResult = null;
+                this.translationLanguageOptions = [
+                    { code: 'en', label: 'English', aliases: ['en', 'english'] },
+                    { code: 'zh-TW', label: 'Traditional Chinese', aliases: ['zh-tw', 'traditional chinese', 'chinese (traditional)', '繁體中文', '繁体中文'] },
+                    { code: 'zh-CN', label: 'Simplified Chinese', aliases: ['zh-cn', 'simplified chinese', 'chinese (simplified)', '简体中文', '簡體中文'] },
+                    { code: 'ja', label: 'Japanese', aliases: ['ja', 'japanese', '日本語', '日文'] },
+                    { code: 'ko', label: 'Korean', aliases: ['ko', 'korean', '한국어', '韩语', '韓語'] },
+                    { code: 'es', label: 'Spanish', aliases: ['es', 'spanish', 'español'] },
+                    { code: 'fr', label: 'French', aliases: ['fr', 'french', 'français'] },
+                    { code: 'de', label: 'German', aliases: ['de', 'german', 'deutsch'] },
+                    { code: 'it', label: 'Italian', aliases: ['it', 'italian', 'italiano'] },
+                    { code: 'pt', label: 'Portuguese', aliases: ['pt', 'portuguese', 'português'] },
+                    { code: 'ru', label: 'Russian', aliases: ['ru', 'russian', 'русский'] },
+                    { code: 'ar', label: 'Arabic', aliases: ['ar', 'arabic', 'العربية'] },
+                    { code: 'hi', label: 'Hindi', aliases: ['hi', 'hindi', 'हिन्दी', 'हिंदी'] }
+                ];
                 this.init();
             }
 
@@ -622,6 +642,11 @@
                 document.getElementById('newNoteBtn').addEventListener('click', () => this.createNewNote());
                 document.getElementById('saveBtn').addEventListener('click', () => this.saveNote());
                 document.getElementById('translateBtn').addEventListener('click', () => this.translateCurrentNote());
+                document.getElementById('targetLanguage').addEventListener('change', () => {
+                    if (this.translationResult) {
+                        this.translateCurrentNote(this.translationResult.original, document.getElementById('targetLanguage').value);
+                    }
+                });
                 document.getElementById('undoTranslationBtn').addEventListener('click', () => this.undoTranslation());
                 document.getElementById('confirmTranslationBtn').addEventListener('click', () => this.applyTranslation());
                 document.getElementById('deleteBtn').addEventListener('click', () => {
@@ -650,39 +675,48 @@
                 document.getElementById('noteContent').addEventListener('input', () => this.hideTranslation());
             }
 
-            async translateCurrentNote() {
-                const title = document.getElementById('noteTitle').value;
-                const content = document.getElementById('noteContent').value;
+            async translateCurrentNote(source = null, requestedLanguage = null) {
+                const title = source ? source.title : document.getElementById('noteTitle').value;
+                const content = source ? source.content : document.getElementById('noteContent').value;
                 if (!title.trim() && !content.trim()) {
                     this.showMessage('Enter a title or note content to translate.', 'error');
                     return;
                 }
 
+                const isUpdatingPreview = Boolean(source);
                 const button = document.getElementById('translateBtn');
                 const originalLabel = button.textContent;
                 button.disabled = true;
-                button.textContent = 'Translating...';
-                this.hideTranslation();
+                if (!isUpdatingPreview) {
+                    button.textContent = 'Translating...';
+                    this.hideTranslation();
+                }
                 this.showMessage('Translating note...', 'loading');
 
                 try {
-                    const response = await fetch('/api/translate', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            title,
-                            content,
-                            target_language: document.getElementById('targetLanguage').value
-                        })
-                    });
-                    const result = await response.json();
-                    if (!response.ok) throw new Error(result.error || 'Translation failed');
-                    if (typeof result.title !== 'string' || typeof result.content !== 'string') {
-                        throw new Error('The translation service returned an invalid response.');
+                    let targetLanguage = requestedLanguage || 'zh-TW';
+                    let result;
+                    for (let attempt = 0; attempt < 2; attempt += 1) {
+                        const response = await fetch('/api/translate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ title, content, target_language: targetLanguage })
+                        });
+                        result = await response.json();
+                        if (!response.ok) throw new Error(result.error || 'Translation failed');
+                        if (typeof result.detected_language !== 'string'
+                                || typeof result.title !== 'string' || typeof result.content !== 'string') {
+                            throw new Error('The translation service returned an invalid response.');
+                        }
+
+                        const preferredTarget = this.populateTargetLanguages(result.detected_language, targetLanguage);
+                        if (preferredTarget === targetLanguage || attempt === 1) break;
+                        targetLanguage = preferredTarget;
                     }
 
-                    this.translationResult = { ...result, original: { title, content } };
-                    const languageLabel = document.getElementById('targetLanguage').selectedOptions[0].textContent;
+                    this.translationResult = { ...result, target_language: targetLanguage, original: { title, content } };
+                    document.getElementById('detectedLanguage').textContent = `Detected: ${result.detected_language}`;
+                    const languageLabel = this.translationLanguageOptions.find(option => option.code === targetLanguage).label;
                     document.getElementById('translationHeading').textContent = `Translated title (${languageLabel})`;
                     document.getElementById('originalTitlePreview').textContent = title;
                     document.getElementById('translatedTitle').textContent = result.title;
@@ -692,11 +726,43 @@
                     document.getElementById('translationResult').style.display = 'flex';
                     this.hideMessage();
                 } catch (error) {
+                    if (isUpdatingPreview && this.translationResult) {
+                        document.getElementById('targetLanguage').value = this.translationResult.target_language;
+                    }
                     this.showMessage(`Translation failed: ${error.message}`, 'error');
                 } finally {
                     button.disabled = false;
                     button.textContent = originalLabel;
                 }
+            }
+
+            populateTargetLanguages(detectedLanguage, requestedLanguage) {
+                const normalized = detectedLanguage.trim().toLocaleLowerCase();
+                const detectedOption = this.translationLanguageOptions.find(option =>
+                    option.aliases.some(alias => normalized.includes(alias))
+                );
+                const preferredCode = detectedOption && detectedOption.code === 'zh-TW' ? 'en' : 'zh-TW';
+                const options = this.translationLanguageOptions.filter(option =>
+                    !detectedOption || option.code !== detectedOption.code
+                );
+                options.sort((left, right) => {
+                    if (left.code === preferredCode) return -1;
+                    if (right.code === preferredCode) return 1;
+                    return 0;
+                });
+
+                const select = document.getElementById('targetLanguage');
+                select.replaceChildren(...options.map(option => {
+                    const element = document.createElement('option');
+                    element.value = option.code;
+                    element.textContent = option.label;
+                    return element;
+                }));
+                const selectedCode = options.some(option => option.code === requestedLanguage)
+                    ? requestedLanguage
+                    : preferredCode;
+                select.value = selectedCode;
+                return selectedCode;
             }
 
             applyTranslation() {
