@@ -15,6 +15,7 @@ from src.routes.user import user_bp
 from src.routes.note import note_bp
 from src.routes.translation import translation_bp
 from src.models.note import Note
+from src.database_config import get_database_uri
 
 ROOT_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 load_dotenv(os.path.join(ROOT_DIR, '.env'))
@@ -74,12 +75,8 @@ CORS(app)
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(note_bp, url_prefix='/api')
 app.register_blueprint(translation_bp, url_prefix='/api')
-# configure database to use repository-root `database/app.db`
-DB_PATH = os.path.join(ROOT_DIR, 'database', 'app.db')
-# ensure database directory exists
-os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{DB_PATH}"
+database_uri, _is_postgres = get_database_uri(os.environ, ROOT_DIR)
+app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 with app.app_context():
